@@ -1,0 +1,83 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "*.zip"
+      - ".github/workflows/build-apk.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          COUNT=$(ls *.zip 2>/dev/null | wc -l)
+          if [ "$COUNT" -ne 1 ]; then
+            echo "::error::Repo root must contain exactly one .zip (found $COUNT)"
+            exit 1
+          fi
+          unzip -q *.zip -d project_src
+          PUBSPEC=$(find project_src -maxdepth 2 -name pubspec.yaml | head -n 1)
+          if [ -z "$PUBSPEC" ]; then
+            echo "::error::pubspec.yaml not found inside the zip"
+            exit 1
+          fi
+          echo "APP_DIR=$(dirname "$PUBSPEC")" >> "$GITHUB_ENV"
+          echo "APP_NAME=$(grep -m1 '^name:' "$PUBSPEC" | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - name: Write env.json from secret
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          ENV_JSON: ${{ secrets.ENV_JSON }}
+        run: |
+          if [ -z "$ENV_JSON" ]; then
+            echo "::error::Secret ENV_JSON is empty or missing"
+            exit 1
+          fi
+          printf '%s' "$ENV_JSON" > env.json
+          python3 -c "import json; json.load(open('env.json'))"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create Android folder
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          flutter create --platforms=android --org com.ezerp --project-name "$APP_NAME" .
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+          grep -n INTERNET android/app/src/main/AndroidManifest.xml
+
+      - name: Build release APK
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          flutter pub get
+          flutter build apk --release --dart-define-from-file=env.json
+
+      - name: Rename APK
+        run: cp "$APP_DIR/build/app/outputs/flutter-apk/app-release.apk" "$APP_NAME.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-apk
+          path: ${{ env.APP_NAME }}.apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.APP_NAME }}-build-${{ github.run_number }}
+          name: ${{ env.APP_NAME }} build ${{ github.run_number }}
+          files: ${{ env.APP_NAME }}.apk
