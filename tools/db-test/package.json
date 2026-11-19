@@ -1,0 +1,12 @@
+{
+  "name": "ez-menu-db-test",
+  "private": true,
+  "type": "module",
+  "description": "Runs the Supabase migrations against an in-memory Postgres (PGlite) and checks schema, RLS and RPC behaviour.",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16"
+  }
+}
