@@ -17,17 +17,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unzip project
+      - name: Find project
         run: |
-          COUNT=$(ls *.zip 2>/dev/null | wc -l)
-          if [ "$COUNT" -ne 1 ]; then
-            echo "::error::Repo root must contain exactly one .zip (found $COUNT)"
-            exit 1
+          echo "Repo files:"
+          find . -maxdepth 3 -not -path './.git/*' -not -path './.git' | head -80
+          ZIP=$(find . -maxdepth 2 -iname '*.zip' -not -path './.git/*' | head -n 1)
+          if [ -n "$ZIP" ]; then
+            echo "Using zip: $ZIP"
+            unzip -q "$ZIP" -d project_src
+            SRC=project_src
+          else
+            echo "No zip found, looking for project files in the repo"
+            SRC=.
           fi
-          unzip -q *.zip -d project_src
-          PUBSPEC=$(find project_src -maxdepth 2 -name pubspec.yaml | head -n 1)
+          PUBSPEC=$(find "$SRC" -maxdepth 3 -name pubspec.yaml -not -path './.git/*' | head -n 1)
           if [ -z "$PUBSPEC" ]; then
-            echo "::error::pubspec.yaml not found inside the zip"
+            echo "::error::No .zip and no pubspec.yaml found in this repo. Check the file list printed above."
             exit 1
           fi
           echo "APP_DIR=$(dirname "$PUBSPEC")" >> "$GITHUB_ENV"
@@ -69,7 +74,7 @@ jobs:
           flutter build apk --release --dart-define-from-file=env.json
 
       - name: Rename APK
-        run: cp "$APP_DIR/build/app/outputs/flutter-apk/app-release.apk" "$APP_NAME.apk"
+        run: cp "$APP_DIR/build/app/outputs/flutter-apk/app-release.apk" "$GITHUB_WORKSPACE/$APP_NAME.apk"
 
       - uses: actions/upload-artifact@v4
         with:
