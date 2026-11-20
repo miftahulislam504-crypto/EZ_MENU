@@ -58,6 +58,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: "3.35.x"
           cache: true
 
       - name: Create Android folder
@@ -67,11 +68,27 @@ jobs:
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
           grep -n INTERNET android/app/src/main/AndroidManifest.xml
 
-      - name: Build release APK
+      - name: Check code (full error list goes to Summary)
         working-directory: ${{ env.APP_DIR }}
         run: |
           flutter pub get
-          flutter build apk --release --dart-define-from-file=env.json
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.txt 2>&1 || true
+          ERRS=$(grep -cE "^ *error " analyze.txt || true)
+          {
+            echo "### Dart analysis: $ERRS error(s)"
+            echo '```'
+            grep -E "^ *error " analyze.txt | sed 's/^ *//' | head -200
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^ *error " analyze.txt | head -40 || true
+          if [ "$ERRS" -gt 0 ]; then
+            echo "::error::$ERRS Dart error(s) found. Open the run Summary page for the full list."
+            exit 1
+          fi
+
+      - name: Build release APK
+        working-directory: ${{ env.APP_DIR }}
+        run: flutter build apk --release --dart-define-from-file=env.json
 
       - name: Rename APK
         run: cp "$APP_DIR/build/app/outputs/flutter-apk/app-release.apk" "$GITHUB_WORKSPACE/$APP_NAME.apk"
