@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/session/branch_status.dart';
 import '../../../core/session/models.dart';
+import '../../../core/session/session_providers.dart';
 import '../../../core/supabase/error_text.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../branches/branch_repository.dart';
