@@ -59,6 +59,12 @@ class MenuPalette {
     }
   }
 
+  /// Status colours for the customer menu: open, closed and a caution tone.
+  /// Lighter on the dark theme so they stay readable.
+  Color get open => isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D);
+  Color get closed => isDark ? const Color(0xFFF87171) : const Color(0xFFB91C1C);
+  Color get caution => isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
+
   /// Accent for text and icons on this palette: the brand colour, lightened
   /// on dark backgrounds so it stays readable.
   Color accentFor(Color brand) {

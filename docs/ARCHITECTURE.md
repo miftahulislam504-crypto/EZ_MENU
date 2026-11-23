@@ -165,6 +165,10 @@ are fixed. Each is a widget (ConsumerWidget or ConsumerStatefulWidget) with a
 | /menu/import-export | features/menu/import_export_screen.dart | `ImportExportScreen()` |
 | /menu/trash | features/menu/trash_screen.dart | `TrashScreen()` |
 | /menu/preview | features/menu/customer_preview_screen.dart | `CustomerPreviewScreen()` |
+| /qr | features/qr/qr_tables_screen.dart | `QrTablesScreen()` |
+| /qr/code/:id | features/qr/qr_detail_screen.dart | `QrDetailScreen({required String qrId})` |
+| /qr/print | features/qr/qr_print_screen.dart | `QrPrintScreen()` |
+| /qr/tables/new, /qr/tables/:id | features/qr/table_edit_screen.dart | `TableEditScreen({String? tableId})` |
 | /m/:business, /m/:business/:branch, /q/:token | features/public_menu/public_menu_screen.dart | `PublicMenuScreen({String? businessSlug, String? branchSlug, String? qrToken})` |
 
 Other screens already in the app: `SplashScreen`, `HomeScreen`, `OrdersScreen`,
@@ -186,27 +190,38 @@ widget state in between, and only then navigate to `AppRoutes.home`.
 
 ### Cross-feature APIs (agreed signatures)
 
-The customer menu module provides, in `features/public_menu/public_menu_view.dart`:
+The customer menu module (`features/public_menu/`) provides:
 
 ```dart
 /// What to load. Value equality so it can key a provider family.
 class PublicMenuRequest {
   const PublicMenuRequest({this.businessSlug, this.branchSlug, this.qrToken, this.preview = false});
-  final String? businessSlug; final String? branchSlug; final String? qrToken; final bool preview;
-  // operator == and hashCode over all four fields
 }
-/// The whole customer menu without a Scaffold route around it. Used by the
-/// public route and, with embedded: true, inside the dashboard preview.
-class PublicMenuView extends ConsumerStatefulWidget {
-  const PublicMenuView({super.key, required this.request, this.embedded = false});
-  final PublicMenuRequest request; final bool embedded;
+/// publicMenuProvider(request): the customer's menu. Kept alive while the page
+/// is open because a QR visit counts as one scan.
+/// publicMenuPreviewProvider(request): the same menu for the dashboard preview,
+/// dropped when the screen closes so every visit shows the latest data.
+
+/// widgets/public_menu_view.dart. The whole customer menu without a Scaffold
+/// around it: used full screen by PublicMenuScreen and, with embedded: true,
+/// inside the phone frame of the dashboard preview.
+class PublicMenuView extends StatefulWidget {
+  const PublicMenuView({super.key, required this.data, this.embedded = false,
+      this.onSelectBranch, this.initialBangla, this.onLanguageChanged});
+  final PublicMenuData data;          // already loaded (get_public_menu)
+  final bool embedded;                // no device safe-area padding
+  final ValueChanged<PublicBranchLink>? onSelectBranch;  // null hides the switcher
 }
 ```
-With `embedded: true` the view must not use route navigation, must size itself
-to the space it is given (a phone frame), must not scroll the page body, and
-must not count a QR scan. `request.preview == true` passes `p_preview: true` to
-`get_public_menu`, which only works for signed-in members and shows an
-unpublished menu.
+The view receives loaded data; loading, errors and the "no menu" screens belong
+to the caller (`PublicMenuScreen`, `CustomerPreviewScreen`). Item and
+information sheets are laid over the menu inside its own area (`MenuSheetHost`)
+rather than with `showModalBottomSheet`, so they stay inside the phone frame.
+`request.preview == true` passes `p_preview: true` to `get_public_menu`, which
+only works for signed-in members, shows an unpublished menu and does not count
+a QR scan. Customer menu colours come from `core/theme/menu_palette.dart`
+(the one place with fixed colours); read them with `context.menu` inside the
+view. Taking an order is Phase 2: dishes open for viewing only.
 
 `features/qr/branch_qr_panel.dart` (used by onboarding step 5):
 
@@ -281,8 +296,9 @@ Checks that ship with the project:
   checks schema, row level security, storage policies and every RPC
   (`cd tools/db-test && npm install && npm test`).
 - `test/`: unit tests for pure Dart logic (slugs, Bangladesh phone numbers,
-  money, localized text, item pricing, CSV, opening hours, hours editing).
-  Run with `flutter test`.
+  money, localized text, item pricing, CSV, opening hours, hours editing,
+  menu management, QR and tables, CSV import screen state, the public menu
+  models and logic). Run with `flutter test`.
 
 Pure logic that does not need Flutter lives in files with no `package:flutter`
 import so it can be tested without a device. Every column or RPC parameter a

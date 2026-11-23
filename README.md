@@ -4,8 +4,10 @@ Digital menu and smart ordering platform for restaurants, cafes, bakeries and
 food courts in Bangladesh. One Flutter codebase (Android, iOS, web) on Supabase
 (Postgres, Auth, Storage, RPC, row level security).
 
-This is the Phase 1 build in progress. Read `docs/STATUS.md` first: it lists
-exactly what is finished, what is a placeholder, and how the code was checked.
+This is the finished Phase 1 build: the digital menu, QR codes and tables, and
+the customer menu. Ordering and payments come in Phase 2. Read `docs/STATUS.md`
+first: it lists exactly what is built, what is not in Phase 1, and how the code
+was checked (the Flutter UI has not been compiled yet).
 
 ## What you need
 
@@ -54,8 +56,9 @@ cd tools/db-test && npm install && npm test
 supabase/migrations   schema, row level security, storage, functions
 lib/core              theme, widget kit, session, Supabase access, pure logic
 lib/app               router and app shell
-lib/features          auth, onboarding, business, branches, home, more, ...
-test/                 unit tests for pure Dart logic
+lib/features          auth, onboarding, business, branches, menu, qr,
+                      public_menu (customer menu), home, more, ...
+test/                 unit tests for pure Dart logic (606 checks)
 tools/db-test         runs the migrations in an in-memory Postgres
 docs/ARCHITECTURE.md  conventions and database notes
 docs/STATUS.md        what is built and what is not

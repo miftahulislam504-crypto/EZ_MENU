@@ -52,7 +52,8 @@ extension JsonMapReader on Map<String, dynamic> {
     return const <String>[];
   }
 
-  Map<String, dynamic> map(String key) {
+  /// Named [jsonMap] because [Map.map] would shadow an extension called map.
+  Map<String, dynamic> jsonMap(String key) {
     final value = this[key];
     if (value is Map) return Map<String, dynamic>.from(value);
     return <String, dynamic>{};

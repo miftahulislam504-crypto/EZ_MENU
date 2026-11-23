@@ -5,10 +5,15 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/session/models.dart';
+import '../../core/session/session_providers.dart';
 import '../../core/supabase/error_text.dart';
 import '../../core/supabase/supabase_providers.dart';
 import '../../core/utils/public_links.dart';
 import '../../core/widgets/widgets.dart';
+import 'qr_assets.dart';
+import 'qr_logic.dart';
+import 'qr_models.dart';
+import 'qr_render.dart';
 
 /// The token of the active menu QR code of a branch. A database trigger
 /// creates it when the branch is created. Null when none is active.
@@ -26,11 +31,33 @@ final branchQrTokenProvider = FutureProvider.autoDispose
       return rows.first['token'] as String?;
     });
 
-/// A scannable QR code for a branch menu with copy and share actions.
+/// A scannable QR code for a branch menu with copy, download and share
+/// actions. The full set of cards (tables, takeaway, print sheets) is on the
+/// QR and tables tab.
 class BranchQrPanel extends ConsumerWidget {
   const BranchQrPanel({super.key, required this.branch});
 
   final Branch branch;
+
+  Future<void> _download(BuildContext context, WidgetRef ref, String link) async {
+    try {
+      final logoUrl = ref.read(currentBusinessProvider).valueOrNull?.logoUrl;
+      final logo = (logoUrl == null || logoUrl.trim().isEmpty)
+          ? null
+          : await ref.read(qrLogoProvider(logoUrl).future);
+      final bytes = await renderQrPng(link, size: 1024, logo: logo);
+      if (!context.mounted) return;
+      await saveQrFile(
+        context,
+        name: qrFileName(kind: QrKind.branch, branchName: branch.name),
+        bytes: bytes,
+        kind: QrFileKind.png,
+        successMessage: 'QR image saved',
+      );
+    } catch (error) {
+      if (context.mounted) showToast(context, friendlyError(error), isError: true);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -100,6 +127,15 @@ class BranchQrPanel extends ConsumerWidget {
                       await Clipboard.setData(ClipboardData(text: link));
                       if (context.mounted) showToast(context, 'Link copied');
                     },
+                  ),
+                ),
+                const SizedBox(width: Sp.md),
+                Expanded(
+                  child: AppButton(
+                    label: 'Download',
+                    icon: Icons.download_rounded,
+                    kind: AppButtonKind.secondary,
+                    onPressed: () => _download(context, ref, link),
                   ),
                 ),
                 const SizedBox(width: Sp.md),

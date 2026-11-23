@@ -8,6 +8,7 @@ export '../theme/app_theme.dart';
 export 'async_view.dart';
 export 'brand_mark.dart';
 export 'buttons.dart';
+export 'category_icons.dart';
 export 'feedback.dart';
 export 'images.dart';
 export 'inputs.dart';

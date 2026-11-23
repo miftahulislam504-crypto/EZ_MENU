@@ -76,3 +76,27 @@ double? parseAmount(String? input) {
   text = ascii.toString().replaceAll(',', '').replaceAll('৳', '').trim();
   return double.tryParse(text);
 }
+
+final RegExp _currencyWords = RegExp(r'(tk\.?|taka|bdt|৳|/-)', caseSensitive: false);
+final RegExp _plainNumber = RegExp(r'^(\d+(\.\d*)?|\.\d+)$');
+
+/// Parses an amount typed by a person: "250", "1,250.50", "২৫০", "tk 99.5",
+/// and half-typed text such as "5." or ".5". Null when empty or not a plain
+/// number. Unlike [parseAmount], negative numbers, "1e5" and "Infinity" are
+/// not accepted (null).
+double? parseMoneyText(String? text) {
+  if (text == null) return null;
+  final cleaned = text.replaceAll(_currencyWords, '').trim();
+  if (cleaned.isEmpty) return null;
+  final ascii = StringBuffer();
+  for (final rune in cleaned.replaceAll(',', '').runes) {
+    final ch = String.fromCharCode(rune);
+    final index = _banglaDigitChars.indexOf(ch);
+    ascii.write(index >= 0 ? index.toString() : ch);
+  }
+  final plain = ascii.toString();
+  if (!_plainNumber.hasMatch(plain)) return null;
+  final value = double.tryParse(plain);
+  if (value == null || !value.isFinite) return null;
+  return value;
+}
